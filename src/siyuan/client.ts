@@ -51,7 +51,24 @@ async function postJson<T>(
     );
   }
 
-  const payload = (await response.json()) as SiyuanResponse<T>;
+  const text = await response.text();
+  if (!text) {
+    throw new SiyuanClientError(
+      'SIYUAN_EMPTY_RESPONSE',
+      '思源返回空响应，请检查 API Token 是否正确、思源版本是否支持该接口'
+    );
+  }
+
+  let payload: SiyuanResponse<T>;
+  try {
+    payload = JSON.parse(text) as SiyuanResponse<T>;
+  } catch {
+    throw new SiyuanClientError(
+      'SIYUAN_INVALID_RESPONSE',
+      '思源返回非 JSON 响应，可能是未授权或接口不存在：' + text.slice(0, 200)
+    );
+  }
+
   if (payload.code !== 0) {
     throw new SiyuanClientError(
       'SIYUAN_API_ERROR',
@@ -94,17 +111,18 @@ export async function querySql<T extends Record<string, unknown>>(
 
 export type CreateDocResult = { docId: string };
 
-// /api/filetree/createDocWithMarkdown: notebook + parent folder path + markdown.
-// The first "# Title" line of the markdown becomes the new document's name.
-export async function createDocWithMarkdown(
+// /api/filetree/createDocWithMd: notebook + full document path + markdown.
+// path must be the complete document path (parent + title, e.g. "/folder/title"),
+// matching the database hpath field. Root is "/title".
+export async function createDocWithMd(
   settings: ExtensionSettings,
   notebook: string,
-  parentPath: string,
+  docPath: string,
   markdown: string
 ): Promise<CreateDocResult> {
-  const data = await postJson<string>(settings, '/api/filetree/createDocWithMarkdown', {
+  const data = await postJson<string>(settings, '/api/filetree/createDocWithMd', {
     notebook,
-    path: parentPath,
+    path: docPath,
     markdown
   });
   return { docId: data };

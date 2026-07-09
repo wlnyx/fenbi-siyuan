@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  createDocWithMarkdown,
+  createDocWithMd,
   listNotebooks,
   querySql,
   testConnection
@@ -48,7 +48,7 @@ test('querySql sends the statement and returns row array', async () => {
   assert.deepEqual(rows, [{ root_id: 'doc-1' }]);
 });
 
-test('createDocWithMarkdown posts notebook/path/markdown and returns docId', async () => {
+test('createDocWithMd posts notebook/docPath/markdown and returns docId', async () => {
   let sentBody = {};
   let calledUrl = '';
   globalThis.fetch = async (url, init) => {
@@ -56,10 +56,10 @@ test('createDocWithMarkdown posts notebook/path/markdown and returns docId', asy
     sentBody = JSON.parse(init.body);
     return Response.json({ code: 0, msg: '', data: '20250709172412-newdoc' });
   };
-  const result = await createDocWithMarkdown(settings, settings.notebookId, '/', "# 标题\n\n内容");
-  assert.equal(calledUrl, 'http://127.0.0.1:6806/api/filetree/createDocWithMarkdown');
+  const result = await createDocWithMd(settings, settings.notebookId, '/folder/doc-name', "# 标题\n\n内容");
+  assert.equal(calledUrl, 'http://127.0.0.1:6806/api/filetree/createDocWithMd');
   assert.equal(sentBody.notebook, settings.notebookId);
-  assert.equal(sentBody.path, '/');
+  assert.equal(sentBody.path, '/folder/doc-name');
   assert.equal(sentBody.markdown, "# 标题\n\n内容");
   assert.equal(result.docId, '20250709172412-newdoc');
 });

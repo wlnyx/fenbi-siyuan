@@ -1,4 +1,4 @@
-import { formatQuestionMarkdown } from '../shared/formatter';
+import { buildDocTitle, formatQuestionMarkdown } from '../shared/formatter';
 import { loadSettings, normalizeSettings, validateSettings } from '../shared/settings';
 import type {
   BackgroundRequest,
@@ -7,7 +7,7 @@ import type {
   FenbiQuestion
 } from '../shared/types';
 import {
-  createDocWithMarkdown,
+  createDocWithMd,
   listNotebooks,
   querySql,
   SiyuanClientError,
@@ -32,17 +32,21 @@ function toErrorResponse(error: unknown): BackgroundResponse {
 
 // Detect whether this question was already collected into the configured notebook.
 // Search block content for the fingerprint token "fenbi:<contentHash>".
+// Best-effort: if the SQL query fails, skip dedup and proceed to save.
 async function hasDuplicate(
   settings: ExtensionSettings,
   question: FenbiQuestion
 ): Promise<boolean> {
-  const fingerprint = `fenbi:${question.contentHash}`;
-  // Escape single quotes in the notebook id for the SQL string literal.
-  const notebook = settings.notebookId.replace(/'/g, "''");
-  const stmt = `SELECT root_id FROM blocks WHERE box = '${notebook}' AND content LIKE '%${fingerprint}%' LIMIT 1`;
-  type Row = { root_id: string };
-  const rows = await querySql<Row>(settings, stmt);
-  return rows.length > 0;
+  try {
+    const fingerprint = `fenbi:${question.contentHash}`;
+    const notebook = settings.notebookId.replace(/'/g, "''");
+    const stmt = `SELECT root_id FROM blocks WHERE box = '${notebook}' AND content LIKE '%${fingerprint}%' LIMIT 1`;
+    type Row = { root_id: string };
+    const rows = await querySql<Row>(settings, stmt);
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function resolveSettings(override?: ExtensionSettings): Promise<ExtensionSettings> {
@@ -84,10 +88,13 @@ async function handleSaveQuestion(question: FenbiQuestion): Promise<BackgroundRe
   }
 
   const markdown = formatQuestionMarkdown(question);
-  const result = await createDocWithMarkdown(
+  const title = buildDocTitle(question);
+  const parent = settings.parentPath === '/' ? '' : settings.parentPath;
+  const docPath = (parent + '/' + title).replace(/\/+$/, '');
+  const result = await createDocWithMd(
     settings,
     settings.notebookId,
-    settings.parentPath,
+    docPath,
     markdown
   );
   return { ok: true, status: 'saved', blockId: result.docId };
