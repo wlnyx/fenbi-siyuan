@@ -25,5 +25,12 @@ declare namespace chrome {
       ): void;
       set(items: Record<string, unknown>, callback?: () => void): void;
     };
+    const local: {
+      get<T extends Record<string, unknown>>(
+        keys: string | string[] | Record<string, unknown>,
+        callback: (items: Record<string, unknown>) => void
+      ): void;
+      set(items: Record<string, unknown>, callback?: () => void): void;
+    };
   }
 }

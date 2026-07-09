@@ -31,6 +31,8 @@ function formatMetadata(question: FenbiQuestion): string[] {
   ];
   if (question.subject?.trim()) lines.push(`> 科目：${question.subject.trim()}`);
   if (question.module?.trim()) lines.push(`> 模块：${question.module.trim()}`);
+  const tagLine = formatTags(question);
+  if (tagLine) lines.push(`> 标签：${tagLine}`);
   return lines;
 }
 
@@ -88,11 +90,8 @@ function formatTags(question: FenbiQuestion): string {
 
 export function formatQuestionMarkdown(question: FenbiQuestion): string {
   const imageMarkdown = formatImages(question);
-  const tags = formatTags(question);
 
   const sections: string[] = [];
-  sections.push(`# ${buildDocTitle(question)}`);
-  sections.push('');
   sections.push(formatMetadata(question).join('\n'));
   sections.push('');
   sections.push('### 题目');
@@ -114,10 +113,6 @@ export function formatQuestionMarkdown(question: FenbiQuestion): string {
   sections.push('### 解析');
   sections.push('');
   sections.push(formatAnalysis(question));
-  if (tags) {
-    sections.push('');
-    sections.push(tags);
-  }
 
   // Collapse consecutive blank lines but keep single ones as paragraph breaks.
   const cleaned = sections.filter(

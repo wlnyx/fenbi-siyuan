@@ -25,6 +25,7 @@ test('formatQuestionMarkdown emits core question card without extra study sectio
   assert.match(markdown, /### 答案/);
   assert.match(markdown, /### 解析/);
   assert.match(markdown, /题目指纹：fenbi:abc123def456/);
+  assert.ok(markdown.includes("> 标签：#政治理论/唯物论#"));
   assert.doesNotMatch(markdown, /错因|复习|背诵点|AI/);
 });
 
@@ -43,7 +44,7 @@ test('tags use Siyuan multi-level #科目/考点# syntax', () => {
     subject: '政治理论', module: 'm', questionText: '', options: [],
     imageUrls: [], keypoints: ['唯物论', '认识论'], capturedAt: '2026-07-08'
   });
-  assert.ok(markdown.includes('#' + "政治理论/唯物论" + '#'));
+  assert.ok(markdown.includes('> 标签：#' + "政治理论/唯物论" + '#'));
   assert.ok(markdown.includes('#' + "政治理论/认识论" + '#'));
 });
 
@@ -56,7 +57,6 @@ test('analysis bolds each option marker and separates paragraphs', () => {
   });
   assert.match(markdown, /\*\*A项正确\*\*/);
   assert.match(markdown, /\*\*B项错误\*\*/);
-  assert.match(markdown, /·/);
 });
 
 test('tags fall back to single-level #科目# when no keypoints', () => {
@@ -65,6 +65,6 @@ test('tags fall back to single-level #科目# when no keypoints', () => {
     subject: '政治理论', module: '', questionText: 'q', options: [],
     imageUrls: [], keypoints: [], capturedAt: '2026-07-08'
   });
-  assert.match(markdown, /#政治理论#/);
+  assert.ok(markdown.includes("> 标签：#政治理论#"));
   assert.ok(!markdown.includes('#' + "政治理论/"));
 });

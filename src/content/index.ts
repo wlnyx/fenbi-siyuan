@@ -97,8 +97,36 @@ function removePreview(): void {
   document.getElementById(MODAL_ID)?.remove();
 }
 
+// Persist last-used subject/module so the next collection defaults to them.
+const MEMORY_KEY = 'fenbiSiyuanMemory';
+type FieldMemory = { subject: string; module: string };
+
+function loadFieldMemory(): Promise<FieldMemory> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(MEMORY_KEY, (items) => {
+      const m = items[MEMORY_KEY] as FieldMemory | undefined;
+      resolve(m ?? { subject: '', module: '' });
+    });
+  });
+}
+
+function saveFieldMemory(values: FieldMemory): void {
+  chrome.storage.local.set({ [MEMORY_KEY]: values });
+}
+
 function openPreview(question: FenbiQuestion): void {
   removePreview();
+  // Field defaults load asynchronously; we attach the listeners after the DOM
+  // exists, and fill from memory once it resolves.
+  let memory: FieldMemory = { subject: '', module: '' };
+  void loadFieldMemory().then((m) => {
+    memory = m;
+    // Only overwrite if the parser left subject/module blank.
+    const subjEl = field(shadow, 'subject');
+    const modEl = field(shadow, 'module');
+    if (!subjEl.value) subjEl.value = m.subject;
+    if (!modEl.value) modEl.value = m.module;
+  });
   const host = document.createElement('div');
   host.id = MODAL_ID;
   const shadow = host.attachShadow({ mode: 'open' });
@@ -225,6 +253,20 @@ function openPreview(question: FenbiQuestion): void {
         font-weight: 900 !important;
         text-align: center;
       }
+      .collapse-section { display: flex; flex-direction: column; }
+      .collapse-header {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 14px; font-weight: 700; color: #8BA0B2;
+        padding-left: 4px; margin-bottom: 8px; cursor: pointer;
+        user-select: none; transition: color 0.3s;
+      }
+      .collapse-header:hover { color: #5A9CF8; }
+      .collapse-arrow {
+        transition: transform 0.2s ease;
+        display: inline-block;
+      }
+      .collapse-section.collapsed .collapse-body { display: none; }
+      .collapse-section.collapsed .collapse-arrow { transform: rotate(-90deg); }
       .green-input:focus {
         background: #E8F8EF !important;
         border-color: #73D59F !important;
@@ -306,19 +348,32 @@ function openPreview(question: FenbiQuestion): void {
             <label class="field-label">📋 选项</label>
             <textarea class="kawaii-scroll" name="options"></textarea>
           </div>
-          <div class="row">
-            <div class="field-group">
-              <label class="field-label">📝 我的答案</label>
-              <input name="userAnswer" />
+          <div class="field-group collapse-section" name="answerSection">
+            <div class="collapse-header" name="answerToggle">
+              <span class="collapse-arrow">▼</span>
+              <span>📝 答案</span>
             </div>
-            <div class="field-group">
-              <label class="field-label">✅ 正确答案</label>
-              <input class="green-input" name="correctAnswer" />
+            <div class="collapse-body">
+              <div class="row">
+                <div class="field-group">
+                  <label class="field-label">我的答案</label>
+                  <input name="userAnswer" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label">✅ 正确答案</label>
+                  <input class="green-input" name="correctAnswer" />
+                </div>
+              </div>
             </div>
           </div>
-          <div class="field-group">
-            <label class="field-label">💡 解析</label>
-            <textarea class="large kawaii-scroll" name="analysis"></textarea>
+          <div class="field-group collapse-section" name="analysisSection">
+            <div class="collapse-header" name="analysisToggle">
+              <span class="collapse-arrow">▼</span>
+              <span>💡 解析</span>
+            </div>
+            <div class="collapse-body">
+              <textarea class="large kawaii-scroll" name="analysis"></textarea>
+            </div>
           </div>
         </div>
         <div class="footer">
@@ -331,14 +386,24 @@ function openPreview(question: FenbiQuestion): void {
   `;
   document.body.append(host);
 
-  field(shadow, 'subject').value = question.subject ?? '';
-  field(shadow, 'module').value = question.module ?? '';
+  // Default subject/module to the last-used values when the parser didn't
+  // detect them; this lets the student batch-collect without retyping.
+  field(shadow, 'subject').value = question.subject ?? memory.subject;
+  field(shadow, 'module').value = question.module ?? memory.module;
   field(shadow, 'keypoints').value = question.keypoints.join(' ');
   field(shadow, 'questionText').value = question.questionText;
   field(shadow, 'options').value = optionText(question);
   field(shadow, 'userAnswer').value = question.userAnswer ?? '';
   field(shadow, 'correctAnswer').value = question.correctAnswer ?? '';
   field(shadow, 'analysis').value = question.analysis ?? '';
+
+  // Collapse sections (answers + analysis) default to folded up.
+  for (const sectionName of ['answerSection', 'analysisSection']) {
+    const section = shadow.querySelector('[name="' + sectionName + '"]');
+    if (section) section.classList.add('collapsed');
+    const toggle = shadow.querySelector('[name="' + sectionName.replace('Section', 'Toggle') + '"]');
+    toggle?.addEventListener('click', () => section?.classList.toggle('collapsed'));
+  }
 
   const status = shadow.querySelector<HTMLElement>('[part="status"]');
   shadow.querySelector('[name="close"]')?.addEventListener('click', removePreview);
@@ -359,6 +424,10 @@ function openPreview(question: FenbiQuestion): void {
         if (status) status.textContent = '已收录，不重复追加';
         return;
       }
+      saveFieldMemory({
+        subject: editedQuestion.subject ?? '',
+        module: editedQuestion.module ?? ''
+      });
       removePreview();
       showToast('已写入思源');
     } catch (error) {
