@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "粉笔题目收进思源",
+  "version": "0.1.0",
+  "description": "从粉笔解析页收集题目、答案和解析到思源笔记。",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:6806/*",
+    "http://localhost:6806/*",
+    "https://*.fenbi.com/*",
+    "http://*.fenbi.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.fenbi.com/*",
+        "http://*.fenbi.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options/options.html"
+}
