@@ -15,8 +15,9 @@ type SiyuanResponse<T> = {
   data: T;
 };
 
-export type AppendBlockResult = {
-  blockId?: string;
+export type NotebookInfo = {
+  id: string;
+  name: string;
 };
 
 function endpoint(settings: ExtensionSettings, path: string): string {
@@ -65,33 +66,46 @@ export async function testConnection(settings: ExtensionSettings): Promise<void>
   await postJson<number>(settings, '/api/system/currentTime', {});
 }
 
-export async function getBlockMarkdown(
-  settings: ExtensionSettings,
-  targetBlockId: string
-): Promise<string> {
-  const data = await postJson<{ kramdown: string }>(settings, '/api/block/getBlockKramdown', {
-    id: targetBlockId
-  });
+export type ListNotebooksResult = { notebooks: NotebookInfo[] };
 
-  return data.kramdown;
+export async function listNotebooks(settings: ExtensionSettings): Promise<NotebookInfo[]> {
+  interface RawNotebook {
+    id: string;
+    name: string;
+    closed?: boolean;
+  }
+  const data = await postJson<{ notebooks: RawNotebook[] }>(
+    settings,
+    '/api/notebook/lsNotebooks',
+    {}
+  );
+  return (data.notebooks ?? [])
+    .filter((nb) => !nb.closed)
+    .map((nb) => ({ id: nb.id, name: nb.name }));
 }
 
-export async function appendMarkdown(
+export async function querySql<T extends Record<string, unknown>>(
   settings: ExtensionSettings,
-  targetBlockId: string,
-  markdown: string
-): Promise<AppendBlockResult> {
-  const data = await postJson<Array<{ doOperations?: Array<{ id?: string }> }>>(
-    settings,
-    '/api/block/appendBlock',
-    {
-      dataType: 'markdown',
-      data: markdown,
-      parentID: targetBlockId
-    }
-  );
+  stmt: string
+): Promise<T[]> {
+  const data = await postJson<T[]>(settings, '/api/query/sql', { stmt });
+  return data ?? [];
+}
 
-  return {
-    blockId: data[0]?.doOperations?.[0]?.id
-  };
+export type CreateDocResult = { docId: string };
+
+// /api/filetree/createDocWithMarkdown: notebook + parent folder path + markdown.
+// The first "# Title" line of the markdown becomes the new document's name.
+export async function createDocWithMarkdown(
+  settings: ExtensionSettings,
+  notebook: string,
+  parentPath: string,
+  markdown: string
+): Promise<CreateDocResult> {
+  const data = await postJson<string>(settings, '/api/filetree/createDocWithMarkdown', {
+    notebook,
+    path: parentPath,
+    markdown
+  });
+  return { docId: data };
 }

@@ -9,6 +9,7 @@
   <body>
     <main>
       <h1>粉笔题目收进思源</h1>
+      <p class="hint">每次收集都会为该题新建一个思源文档，并写入 <code>#科目/考点#</code> 多级标签。</p>
       <form id="settings-form">
         <label>
           思源地址
@@ -19,8 +20,12 @@
           <input id="siyuanToken" name="siyuanToken" type="password" autocomplete="off" />
         </label>
         <label>
-          目标文档块 ID
-          <input id="targetBlockId" name="targetBlockId" />
+          笔记本 ID
+          <input id="notebookId" name="notebookId" placeholder="20250410143546-z2v2wx9" />
+        </label>
+        <label>
+          文件夹路径
+          <input id="parentPath" name="parentPath" placeholder="/" />
         </label>
         <div class="actions">
           <button type="submit">保存</button>

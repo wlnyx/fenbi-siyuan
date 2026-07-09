@@ -1,25 +1,8 @@
-export type FenbiQuestion = {
-  source: 'fenbi';
-  url: string;
-  urlKey: string;
-  contentHash: string;
-  title: string;
-  subject?: string;
-  module?: string;
-  questionText: string;
-  options: Array<{ label: string; text: string }>;
-  userAnswer?: string;
-  correctAnswer?: string;
-  analysis?: string;
-  imageUrls: string[];
-  tags: string[];
-  capturedAt: string;
-};
-
 export type ExtensionSettings = {
   siyuanBaseUrl: string;
   siyuanToken: string;
-  targetBlockId: string;
+  notebookId: string;
+  parentPath: string;
 };
 
 export type SaveQuestionRequest = {
@@ -39,3 +22,21 @@ export type BackgroundResponse =
   | { ok: true; status: 'duplicate' }
   | { ok: true; status: 'connected' }
   | { ok: false; errorCode: string; message: string };
+
+export type FenbiQuestion = {
+  source: 'fenbi';
+  url: string;
+  urlKey: string;
+  contentHash: string;
+  title: string;
+  subject?: string;
+  module?: string;
+  questionText: string;
+  options: Array<{ label: string; text: string }>;
+  userAnswer?: string;
+  correctAnswer?: string;
+  analysis?: string;
+  imageUrls: string[];
+  keypoints: string[];
+  capturedAt: string;
+};

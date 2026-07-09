@@ -3,14 +3,25 @@ import type { ExtensionSettings } from './types';
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   siyuanBaseUrl: 'http://127.0.0.1:6806',
   siyuanToken: '',
-  targetBlockId: ''
+  notebookId: '',
+  parentPath: '/'
 };
+
+// Ensure a path starts with "/" and has no trailing slash (root "/").
+export function normalizeParentPath(value: string): string {
+  let p = value.trim().replace(/\\+/g, '/');
+  if (!p) return '/';
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  if (!p.startsWith('/')) p = '/' + p;
+  return p;
+}
 
 export function normalizeSettings(settings: ExtensionSettings): ExtensionSettings {
   return {
     siyuanBaseUrl: settings.siyuanBaseUrl.trim().replace(/\/+$/, ''),
     siyuanToken: settings.siyuanToken.trim(),
-    targetBlockId: settings.targetBlockId.trim()
+    notebookId: settings.notebookId.trim(),
+    parentPath: normalizeParentPath(settings.parentPath)
   };
 }
 
@@ -20,7 +31,8 @@ export function validateSettings(settings: ExtensionSettings): string[] {
 
   if (!normalized.siyuanBaseUrl) errors.push('缺少思源地址');
   if (!normalized.siyuanToken) errors.push('缺少 API Token');
-  if (!normalized.targetBlockId) errors.push('缺少目标文档块 ID');
+  if (!normalized.notebookId) errors.push('缺少笔记本 ID');
+  if (!normalized.parentPath) errors.push('缺少文件夹路径');
 
   try {
     const url = new URL(normalized.siyuanBaseUrl);
@@ -42,7 +54,7 @@ export function loadSettings(): Promise<ExtensionSettings> {
         return;
       }
 
-      resolve(normalizeSettings(items));
+      resolve(normalizeSettings(items as ExtensionSettings));
     });
   });
 }

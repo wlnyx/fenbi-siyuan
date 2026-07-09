@@ -45,10 +45,10 @@ function showToast(message: string): void {
   window.setTimeout(() => toast.remove(), 3200);
 }
 
-function parseTags(value: string): string[] {
+function parseKeypoints(value: string): string[] {
   return value
     .split(/[,\s\u3001]+/)
-    .map((tag) => tag.trim().replace(/^#/, ''))
+    .map((kp) => kp.trim())
     .filter(Boolean);
 }
 
@@ -86,7 +86,7 @@ async function questionFromForm(root: ShadowRoot, original: FenbiQuestion): Prom
     userAnswer: field(root, 'userAnswer').value.trim(),
     correctAnswer: field(root, 'correctAnswer').value.trim(),
     analysis: field(root, 'analysis').value.trim(),
-    tags: parseTags(field(root, 'tags').value),
+    keypoints: parseKeypoints(field(root, 'keypoints').value),
     capturedAt: original.capturedAt || new Date().toISOString().slice(0, 10)
   };
   q.contentHash = await computeQuestionHash(q);
@@ -295,10 +295,8 @@ function openPreview(question: FenbiQuestion): void {
             </div>
           </div>
           <div class="field-group">
-            <label class="field-label">🏷️ 标签</label>
-            <div class="tags-wrapper">
-              <input name="tags" placeholder="粉笔 常识 政治理论" />
-            </div>
+            <label class="field-label">🎯 考点</label>
+            <input name="keypoints" placeholder="唯物论 认识论" />
           </div>
           <div class="field-group">
             <label class="field-label">📝 题目</label>
@@ -335,7 +333,7 @@ function openPreview(question: FenbiQuestion): void {
 
   field(shadow, 'subject').value = question.subject ?? '';
   field(shadow, 'module').value = question.module ?? '';
-  field(shadow, 'tags').value = question.tags.join(' ');
+  field(shadow, 'keypoints').value = question.keypoints.join(' ');
   field(shadow, 'questionText').value = question.questionText;
   field(shadow, 'options').value = optionText(question);
   field(shadow, 'userAnswer').value = question.userAnswer ?? '';

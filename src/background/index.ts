@@ -7,8 +7,9 @@ import type {
   FenbiQuestion
 } from '../shared/types';
 import {
-  appendMarkdown,
-  getBlockMarkdown,
+  createDocWithMarkdown,
+  listNotebooks,
+  querySql,
   SiyuanClientError,
   testConnection
 } from '../siyuan/client';
@@ -29,11 +30,19 @@ function toErrorResponse(error: unknown): BackgroundResponse {
   return errorResponse('UNKNOWN_ERROR', '未知错误');
 }
 
-function hasDuplicate(markdown: string, question: FenbiQuestion): boolean {
-  return (
-    markdown.includes(`fenbi:${question.contentHash}`) ||
-    markdown.includes(question.urlKey)
-  );
+// Detect whether this question was already collected into the configured notebook.
+// Search block content for the fingerprint token "fenbi:<contentHash>".
+async function hasDuplicate(
+  settings: ExtensionSettings,
+  question: FenbiQuestion
+): Promise<boolean> {
+  const fingerprint = `fenbi:${question.contentHash}`;
+  // Escape single quotes in the notebook id for the SQL string literal.
+  const notebook = settings.notebookId.replace(/'/g, "''");
+  const stmt = `SELECT root_id FROM blocks WHERE box = '${notebook}' AND content LIKE '%${fingerprint}%' LIMIT 1`;
+  type Row = { root_id: string };
+  const rows = await querySql<Row>(settings, stmt);
+  return rows.length > 0;
 }
 
 async function resolveSettings(override?: ExtensionSettings): Promise<ExtensionSettings> {
@@ -46,11 +55,20 @@ async function handleTestConnection(
   const settings = await resolveSettings(settingsOverride);
   const validationErrors = validateSettings(settings);
   if (validationErrors.length > 0) {
-    return errorResponse('INVALID_SETTINGS', validationErrors.join('，'));
+    return errorResponse('INVALID_SETTINGS', validationErrors.join('；'));
   }
 
   await testConnection(settings);
-  await getBlockMarkdown(settings, settings.targetBlockId);
+
+  const notebooks = await listNotebooks(settings);
+  if (!notebooks.some((nb) => nb.id === settings.notebookId)) {
+    return errorResponse(
+      'INVALID_SETTINGS',
+      '笔记本 ID 不存在，请检查设置。当前可选笔记本：' +
+        notebooks.map((nb) => `${nb.name}(${nb.id})`).join('、')
+    );
+  }
+
   return { ok: true, status: 'connected' };
 }
 
@@ -58,17 +76,21 @@ async function handleSaveQuestion(question: FenbiQuestion): Promise<BackgroundRe
   const settings = await resolveSettings();
   const validationErrors = validateSettings(settings);
   if (validationErrors.length > 0) {
-    return errorResponse('INVALID_SETTINGS', validationErrors.join('，'));
+    return errorResponse('INVALID_SETTINGS', validationErrors.join('；'));
   }
 
-  const existingMarkdown = await getBlockMarkdown(settings, settings.targetBlockId);
-  if (hasDuplicate(existingMarkdown, question)) {
+  if (await hasDuplicate(settings, question)) {
     return { ok: true, status: 'duplicate' };
   }
 
   const markdown = formatQuestionMarkdown(question);
-  const result = await appendMarkdown(settings, settings.targetBlockId, markdown);
-  return { ok: true, status: 'saved', blockId: result.blockId };
+  const result = await createDocWithMarkdown(
+    settings,
+    settings.notebookId,
+    settings.parentPath,
+    markdown
+  );
+  return { ok: true, status: 'saved', blockId: result.docId };
 }
 
 async function handleMessage(message: BackgroundRequest): Promise<BackgroundResponse> {

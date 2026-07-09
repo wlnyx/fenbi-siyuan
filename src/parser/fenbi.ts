@@ -18,8 +18,6 @@ function visibleHTML(el: Element | null | undefined): string {
 }
 
 // Resolve the <app-ti> question element from the given container.
-// The container passed from content script is typically .questions-single-container
-// which wraps an <app-ti data-question-key="...">.
 function findQuestionNode(container: HTMLElement): HTMLElement {
   const appTi = container.querySelector('app-ti[data-question-key]');
   if (appTi) return appTi as HTMLElement;
@@ -62,26 +60,33 @@ function extractOptions(root: HTMLElement): RawOption[] {
 }
 
 function extractCorrectAnswer(root: HTMLElement): string | undefined {
-  // .correct-answer span inside <app-solution-overall>
   const el = root.querySelector('.correct-answer');
   const t = visibleText(el);
   return t || undefined;
 }
 
 function extractUserAnswer(root: HTMLElement): string | undefined {
-  // .your-answer span (nested inside .your-answer-wrong or .your-answer-correct)
   const el = root.querySelector('.your-answer');
   const t = visibleText(el);
   return t || undefined;
 }
 
+// Extract the analysis as multiple paragraphs. Fenbi renders each option's
+// analysis (e.g. "A项正确..." / "B项错误...") as a separate <p>; the summary
+// line ("故正确答案为A。") is also its own <p>. Keep paragraphs separated so the
+// formatter can bold the option markers and space them out.
 function extractAnalysis(root: HTMLElement): string | undefined {
-  // <section id="section-solution-..."> contains the analysis text
   const section = root.querySelector('[id^="section-solution-"]');
   if (section) {
-    const content = section.querySelector('.content');
-    const target = content ?? section;
-    const text = visibleHTML(target);
+    const content = section.querySelector('.content') ?? section;
+    const paragraphs = Array.from(content.querySelectorAll('p'))
+      .map((p) => visibleText(p))
+      .filter(Boolean);
+    if (paragraphs.length > 0) {
+      return paragraphs.join('\n\n');
+    }
+    // Fallback: no <p> tags, use the whole section text.
+    const text = visibleHTML(content);
     if (text) return text;
   }
   return undefined;
@@ -136,14 +141,6 @@ function extractSubjectAndModule(documentRef: Document): Pick<FenbiQuestion, 'su
   };
 }
 
-function buildTags(subject?: string, module?: string, keypoints?: string[]): string[] {
-  const tags = ['\u7C89\u7B14'];
-  if (subject?.trim()) tags.push(subject.trim());
-  if (module?.trim()) tags.push(module.trim());
-  if (keypoints) for (const k of keypoints) if (k.trim()) tags.push(k.trim());
-  return [...new Set(tags)];
-}
-
 export async function parseFenbiQuestion(
   documentRef: Document,
   rootElement?: HTMLElement
@@ -158,9 +155,7 @@ export async function parseFenbiQuestion(
   const correctAnswer = extractCorrectAnswer(root);
   const userAnswer = extractUserAnswer(root);
   const analysis = extractAnalysis(root);
-  const source = extractSource(root);
   const keypoints = extractKeypoints(root);
-  const questionType = extractQuestionType(root);
   const { subject, module: mod } = extractSubjectAndModule(documentRef);
 
   const url = location.href;
@@ -172,7 +167,7 @@ export async function parseFenbiQuestion(
     url,
     urlKey,
     contentHash,
-    title: documentRef.title || '\u7C89\u7B14\u9898\u76EE',
+    title: documentRef.title || '粉笔题目',
     subject,
     module: mod,
     questionText,
@@ -181,7 +176,7 @@ export async function parseFenbiQuestion(
     correctAnswer,
     analysis,
     imageUrls: collectImageUrls(root),
-    tags: buildTags(subject, mod, keypoints),
+    keypoints,
     capturedAt: new Date().toISOString().slice(0, 10)
   };
 }

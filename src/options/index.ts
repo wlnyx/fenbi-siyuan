@@ -1,4 +1,9 @@
-import { loadSettings, saveSettings, validateSettings } from '../shared/settings';
+import {
+  loadSettings,
+  normalizeParentPath,
+  saveSettings,
+  validateSettings
+} from '../shared/settings';
 import type { BackgroundResponse, ExtensionSettings } from '../shared/types';
 
 function input(id: keyof ExtensionSettings): HTMLInputElement {
@@ -16,7 +21,8 @@ function formSettings(): ExtensionSettings {
   return {
     siyuanBaseUrl: input('siyuanBaseUrl').value,
     siyuanToken: input('siyuanToken').value,
-    targetBlockId: input('targetBlockId').value
+    notebookId: input('notebookId').value,
+    parentPath: input('parentPath').value
   };
 }
 
@@ -37,7 +43,8 @@ async function loadForm(): Promise<void> {
   const settings = await loadSettings();
   input('siyuanBaseUrl').value = settings.siyuanBaseUrl;
   input('siyuanToken').value = settings.siyuanToken;
-  input('targetBlockId').value = settings.targetBlockId;
+  input('notebookId').value = settings.notebookId;
+  input('parentPath').value = settings.parentPath;
 }
 
 document.getElementById('settings-form')?.addEventListener('submit', async (event) => {
