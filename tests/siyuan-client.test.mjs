@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  appendHtmlBlock,
   createDocWithMd,
   listNotebooks,
   querySql,
@@ -62,4 +63,21 @@ test('createDocWithMd posts notebook/docPath/markdown and returns docId', async 
   assert.equal(sentBody.path, '/folder/doc-name');
   assert.equal(sentBody.markdown, "# 标题\n\n内容");
   assert.equal(result.docId, '20250709172412-newdoc');
+});
+
+
+test('appendHtmlBlock posts dom data to appendBlock with parentID', async () => {
+  let sentBody = {};
+  let calledUrl = '';
+  globalThis.fetch = async (url, init) => {
+    calledUrl = url;
+    sentBody = JSON.parse(init.body);
+    return Response.json({ code: 0, msg: '', data: null });
+  };
+  const html = '<div>\n<details><summary>x</summary>\n</details>\n</div>';
+  await appendHtmlBlock(settings, '20250709172412-newdoc', html);
+  assert.equal(calledUrl, 'http://127.0.0.1:6806/api/block/appendBlock');
+  assert.equal(sentBody.dataType, 'dom');
+  assert.equal(sentBody.data, html);
+  assert.equal(sentBody.parentID, '20250709172412-newdoc');
 });

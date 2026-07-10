@@ -129,33 +129,20 @@ export async function createDocWithMd(
 }
 
 
-// Insert an HTML block as real DOM so SiYuan renders a native <details> widget.
-// Per the Siyuan insertBlock API: data must be wrapped in a single root element
-// with no empty lines inside. previousID pins insertion after that block.
-export async function insertHtmlBlock(
+// Append an HTML block as the last child of a document so SiYuan renders a
+// native <details> widget at the end (after the options). Per the Siyuan
+// appendBlock API: data must be wrapped in a single root element with no empty
+// lines inside. appendBlock (unlike insertBlock with only parentID, which
+// prepends) guarantees the block lands at the bottom of the parent.
+export async function appendHtmlBlock(
   settings: ExtensionSettings,
-  html: string,
-  anchor: { previousID: string } | { parentID: string }
+  parentID: string,
+  html: string
 ): Promise<void> {
-  const body: Record<string, unknown> = { dataType: 'dom', data: html };
-  if ('previousID' in anchor) body.previousID = anchor.previousID;
-  else body.parentID = (anchor as { parentID: string }).parentID;
-  await postJson<unknown>(settings, '/api/block/insertBlock', body);
+  await postJson<unknown>(settings, '/api/block/appendBlock', {
+    dataType: 'dom',
+    data: html,
+    parentID
+  });
 }
 
-// Resolve the last direct child block of a document so we can append after it.
-// Best-effort: returns undefined if the query yields nothing or errors out.
-export async function getLastChildBlockId(
-  settings: ExtensionSettings,
-  docId: string
-): Promise<string | undefined> {
-  try {
-    const escaped = docId.replace(/'/g, "''");
-    const stmt = `SELECT id FROM blocks WHERE root_id='${escaped}' AND parent_id='${escaped}' ORDER BY sort DESC LIMIT 1`;
-    type Row = { id: string };
-    const rows = await querySql<Row>(settings, stmt);
-    return rows[0]?.id;
-  } catch {
-    return undefined;
-  }
-}
