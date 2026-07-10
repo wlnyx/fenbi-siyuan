@@ -1,4 +1,8 @@
-import { buildDocTitle, formatQuestionMarkdown } from '../shared/formatter';
+import {
+  buildDocTitle,
+  formatAnswerAnalysisHtml,
+  formatQuestionMarkdown
+} from '../shared/formatter';
 import { loadSettings, normalizeSettings, validateSettings } from '../shared/settings';
 import type {
   BackgroundRequest,
@@ -8,6 +12,8 @@ import type {
 } from '../shared/types';
 import {
   createDocWithMd,
+  getLastChildBlockId,
+  insertHtmlBlock,
   listNotebooks,
   querySql,
   SiyuanClientError,
@@ -96,6 +102,18 @@ async function handleSaveQuestion(question: FenbiQuestion): Promise<BackgroundRe
     settings.notebookId,
     docPath,
     markdown
+  );
+
+  // The answer + analysis go in as a real SiYuan HTML block (not Markdown) so
+  // <details> renders as a collapsed, interactive widget. Pin it to the end of the
+  // new document by inserting after its last child block; fall back to appending
+  // under the document root if the lookup fails.
+  const html = formatAnswerAnalysisHtml(question);
+  const lastChildId = await getLastChildBlockId(settings, result.docId);
+  await insertHtmlBlock(
+    settings,
+    html,
+    lastChildId ? { previousID: lastChildId } : { parentID: result.docId }
   );
   return { ok: true, status: 'saved', blockId: result.docId };
 }

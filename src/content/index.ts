@@ -253,21 +253,7 @@ function openPreview(question: FenbiQuestion): void {
         font-weight: 900 !important;
         text-align: center;
       }
-      .collapse-section { display: flex; flex-direction: column; }
-      .collapse-header {
-        display: flex; align-items: center; gap: 6px;
-        font-size: 14px; font-weight: 700; color: #8BA0B2;
-        padding-left: 4px; margin-bottom: 8px; cursor: pointer;
-        user-select: none; transition: color 0.3s;
-      }
-      .collapse-header:hover { color: #5A9CF8; }
-      .collapse-arrow {
-        transition: transform 0.2s ease;
-        display: inline-block;
-      }
-      .collapse-section.collapsed .collapse-body { display: none; }
-      .collapse-section.collapsed .collapse-arrow { transform: rotate(-90deg); }
-      .green-input:focus {
+.green-input:focus {
         background: #E8F8EF !important;
         border-color: #73D59F !important;
         box-shadow: 0 0 0 4px rgba(115, 213, 159, 0.2) !important;
@@ -348,32 +334,19 @@ function openPreview(question: FenbiQuestion): void {
             <label class="field-label">📋 选项</label>
             <textarea class="kawaii-scroll" name="options"></textarea>
           </div>
-          <div class="field-group collapse-section" name="answerSection">
-            <div class="collapse-header" name="answerToggle">
-              <span class="collapse-arrow">▼</span>
-              <span>📝 答案</span>
+          <div class="row">
+            <div class="field-group">
+              <label class="field-label">📝 我的答案</label>
+              <input name="userAnswer" />
             </div>
-            <div class="collapse-body">
-              <div class="row">
-                <div class="field-group">
-                  <label class="field-label">我的答案</label>
-                  <input name="userAnswer" />
-                </div>
-                <div class="field-group">
-                  <label class="field-label">✅ 正确答案</label>
-                  <input class="green-input" name="correctAnswer" />
-                </div>
-              </div>
+            <div class="field-group">
+              <label class="field-label">✅ 正确答案</label>
+              <input class="green-input" name="correctAnswer" />
             </div>
           </div>
-          <div class="field-group collapse-section" name="analysisSection">
-            <div class="collapse-header" name="analysisToggle">
-              <span class="collapse-arrow">▼</span>
-              <span>💡 解析</span>
-            </div>
-            <div class="collapse-body">
-              <textarea class="large kawaii-scroll" name="analysis"></textarea>
-            </div>
+          <div class="field-group">
+            <label class="field-label">💡 解析</label>
+            <textarea class="large kawaii-scroll" name="analysis"></textarea>
           </div>
         </div>
         <div class="footer">
@@ -396,14 +369,6 @@ function openPreview(question: FenbiQuestion): void {
   field(shadow, 'userAnswer').value = question.userAnswer ?? '';
   field(shadow, 'correctAnswer').value = question.correctAnswer ?? '';
   field(shadow, 'analysis').value = question.analysis ?? '';
-
-  // Collapse sections (answers + analysis) default to folded up.
-  for (const sectionName of ['answerSection', 'analysisSection']) {
-    const section = shadow.querySelector('[name="' + sectionName + '"]');
-    if (section) section.classList.add('collapsed');
-    const toggle = shadow.querySelector('[name="' + sectionName.replace('Section', 'Toggle') + '"]');
-    toggle?.addEventListener('click', () => section?.classList.toggle('collapsed'));
-  }
 
   const status = shadow.querySelector<HTMLElement>('[part="status"]');
   shadow.querySelector('[name="close"]')?.addEventListener('click', removePreview);

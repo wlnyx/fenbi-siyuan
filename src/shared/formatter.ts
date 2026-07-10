@@ -22,11 +22,26 @@ export function buildDocTitle(question: FenbiQuestion): string {
   return segments.join('·');
 }
 
+// Siyuan native multi-level tag syntax: #科目/考点# nests 考点 under 科目.
+function formatTags(question: FenbiQuestion): string {
+  const subject = question.subject?.trim();
+  const keypoints = question.keypoints
+    .map((kp) => kp.trim())
+    .filter(Boolean);
+  const tags: string[] = [];
+  if (subject && keypoints.length > 0) {
+    for (const kp of keypoints) tags.push(`#${subject}/${kp}#`);
+  } else if (subject) {
+    tags.push(`#${subject}#`);
+  } else if (keypoints.length > 0) {
+    for (const kp of keypoints) tags.push(`#${kp}#`);
+  }
+  return tags.join(' ');
+}
+
 function formatMetadata(question: FenbiQuestion): string[] {
   const lines = [
     '> 来源：粉笔',
-    `> 链接：${question.url}`,
-    `> 规范链接：${question.urlKey}`,
     `> 题目指纹：fenbi:${question.contentHash}`
   ];
   if (question.subject?.trim()) lines.push(`> 科目：${question.subject.trim()}`);
@@ -50,44 +65,10 @@ function formatOptions(question: FenbiQuestion): string {
     .join('\n');
 }
 
-function formatAnswers(question: FenbiQuestion): string {
-  return [
-    `- 我的答案：${fallback(question.userAnswer)}`,
-    `- 正确答案：${fallback(question.correctAnswer)}`
-  ].join('\n');
-}
-
-// Split the analysis blob into paragraphs (parser already separates <p> blocks
-// with a blank line) and bold the leading "X项正确/错误" marker of each option
-// analysis so they stand out instead of running together.
-function formatAnalysis(question: FenbiQuestion): string {
-  const raw = question.analysis?.trim();
-  if (!raw) return '未解析到解析内容';
-  return raw
-    .split(/\n{2,}/)
-    .map((para) => para.trim())
-    .filter(Boolean)
-    .map((para) => para.replace(/^([A-H])项(正确|错误)/, '**$1项$2**'))
-    .join('\n\n');
-}
-
-// Siyuan native multi-level tag syntax: #科目/考点# nests 考点 under 科目.
-function formatTags(question: FenbiQuestion): string {
-  const subject = question.subject?.trim();
-  const keypoints = question.keypoints
-    .map((kp) => kp.trim())
-    .filter(Boolean);
-  const tags: string[] = [];
-  if (subject && keypoints.length > 0) {
-    for (const kp of keypoints) tags.push(`#${subject}/${kp}#`);
-  } else if (subject) {
-    tags.push(`#${subject}#`);
-  } else if (keypoints.length > 0) {
-    for (const kp of keypoints) tags.push(`#${kp}#`);
-  }
-  return tags.join(' ');
-}
-
+// Markdown body sent to createDocWithMd: metadata quote block + question + options.
+// The collapsible answer+analysis is inserted afterwards as a proper SiYuan HTML
+// block via /api/block/insertBlock (see background/index.ts), because embedding
+// <details> inside Markdown is split by CommonMark blank-line HTML-block rules.
 export function formatQuestionMarkdown(question: FenbiQuestion): string {
   const imageMarkdown = formatImages(question);
 
@@ -105,18 +86,61 @@ export function formatQuestionMarkdown(question: FenbiQuestion): string {
   sections.push('### 选项');
   sections.push('');
   sections.push(formatOptions(question));
-  sections.push('');
-  sections.push('### 答案');
-  sections.push('');
-  sections.push(formatAnswers(question));
-  sections.push('');
-  sections.push('### 解析');
-  sections.push('');
-  sections.push(formatAnalysis(question));
 
   // Collapse consecutive blank lines but keep single ones as paragraph breaks.
   const cleaned = sections.filter(
     (line, index, lines) => !(line === '' && lines[index - 1] === '')
   );
   return cleaned.join('\n').trim().concat('\n');
+}
+
+// Escape text that will live inside an HTML block. Markdown is NOT parsed inside
+// a SiYuan <div> HTML block, so we render content as real HTML and must escape raw
+// ampersands/angle brackets in user-supplied text.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>');
+}
+
+// The analysis blob comes in as paragraphs (parser already separates <p> blocks
+// with a blank line). Bold the leading "X项正确/错误" marker of each option so they
+// stand out instead of running together. Runs on the escaped paragraph.
+function formatAnalysisHtml(question: FenbiQuestion): string {
+  const raw = question.analysis?.trim();
+  if (!raw) return '<p>未解析到解析内容</p>';
+  const paragraphs = raw
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter(Boolean)
+    .map((para) =>
+      escapeHtml(para).replace(/^([A-H])项(正确|错误)/, '<strong>$1项$2</strong>')
+    );
+  return paragraphs.map((para) => `<p>${para}</p>`).join('\n');
+}
+
+function formatAnswersHtml(question: FenbiQuestion): string {
+  return [
+    `<p>我的答案：${escapeHtml(fallback(question.userAnswer))}</p>`,
+    `<p>正确答案：${escapeHtml(fallback(question.correctAnswer))}</p>`
+  ].join('\n');
+}
+
+// Build a single Siyuan HTML block wrapping the collapsed answer + analysis.
+// Constraints from the Siyuan insertBlock(dom) API:
+//   - one unique root <div> wrapping everything
+//   - no empty lines inside (Siyuan's DOM parser rejects blank lines)
+// <details> defaults to collapsed, so this yields "默认折叠" in the doc.
+export function formatAnswerAnalysisHtml(question: FenbiQuestion): string {
+  return [
+    '<div>',
+    '<details><summary>答案</summary>',
+    formatAnswersHtml(question),
+    '</details>',
+    '<details><summary>解析</summary>',
+    formatAnalysisHtml(question),
+    '</details>',
+    '</div>'
+  ].join('\n');
 }
