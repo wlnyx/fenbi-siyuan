@@ -22,10 +22,11 @@ export function buildDocTitle(question: FenbiQuestion): string {
   return segments.join('·');
 }
 
-// Siyuan native multi-level tag syntax: # 科目 / 模块 / 考点 #, nesting 考点
-// under 模块 and 模块 under 科目. Missing middle levels are skipped, so it
-// degrades to #科目/考点#, #科目/模块#, or #科目# depending on what's present.
-function formatTags(question: FenbiQuestion): string {
+// Siyuan multi-level tag syntax produced for the DOCUMENT tags attribute (set
+// via /api/attr/setBlockAttrs in background/index.ts), so tags appear as
+// document-level tags browsable in the tag tree, not embedded in the content.
+// Missing middle levels are skipped: degrades to #科目/考点#, #科目/模块#, or #科目#.
+export function formatTags(question: FenbiQuestion): string {
   const subject = question.subject?.trim();
   const module = question.module?.trim();
   const keypoints = question.keypoints
@@ -48,8 +49,6 @@ function formatMetadata(question: FenbiQuestion): string[] {
   const lines = [`> 题目指纹：fenbi:${question.contentHash}`];
   if (question.subject?.trim()) lines.push(`> 科目：${question.subject.trim()}`);
   if (question.module?.trim()) lines.push(`> 模块：${question.module.trim()}`);
-  const tagLine = formatTags(question);
-  if (tagLine) lines.push(`> 标签：${tagLine}`);
   return lines;
 }
 

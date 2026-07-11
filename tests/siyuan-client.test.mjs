@@ -5,6 +5,7 @@ import {
   createDocWithMd,
   listNotebooks,
   querySql,
+  setBlockTags,
   testConnection
 } from '../dist/testable/client.js';
 
@@ -80,4 +81,26 @@ test('appendHtmlBlock posts dom data to appendBlock with parentID', async () => 
   assert.equal(sentBody.dataType, 'dom');
   assert.equal(sentBody.data, html);
   assert.equal(sentBody.parentID, '20250709172412-newdoc');
+});
+
+test('setBlockTags posts id/attrs/tags to /api/attr/setBlockAttrs', async () => {
+  let sentBody = {};
+  let calledUrl = '';
+  globalThis.fetch = async (url, init) => {
+    calledUrl = url;
+    sentBody = JSON.parse(init.body);
+    return Response.json({ code: 0, msg: '', data: null });
+  };
+  const tags = '#政治理论/专项智能练习/唯物论# #政治理论/专项智能练习/认识论#';
+  await setBlockTags(settings, '20250709172412-newdoc', tags);
+  assert.equal(calledUrl, 'http://127.0.0.1:6806/api/attr/setBlockAttrs');
+  assert.equal(sentBody.id, '20250709172412-newdoc');
+  assert.equal(sentBody.attrs.tags, tags);
+});
+
+test('setBlockTags skips the API call when tags is empty', async () => {
+  let called = false;
+  globalThis.fetch = async () => { called = true; return Response.json({ code: 0, msg: '', data: null }); };
+  await setBlockTags(settings, 'doc-id', '   ');
+  assert.equal(called, false);
 });

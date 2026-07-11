@@ -1,7 +1,8 @@
 import {
   buildDocTitle,
   formatAnswerAnalysisHtml,
-  formatQuestionMarkdown
+  formatQuestionMarkdown,
+  formatTags
 } from '../shared/formatter';
 import { loadSettings, normalizeSettings, validateSettings } from '../shared/settings';
 import type {
@@ -15,6 +16,7 @@ import {
   createDocWithMd,
   listNotebooks,
   querySql,
+  setBlockTags,
   SiyuanClientError,
   testConnection
 } from '../siyuan/client';
@@ -110,6 +112,11 @@ async function handleSaveQuestion(question: FenbiQuestion): Promise<BackgroundRe
   // parentID which would prepend it to the top.
   const html = formatAnswerAnalysisHtml(question);
   await appendHtmlBlock(settings, result.docId, html);
+
+  // Promote #科目/模块/考点# tags to the document block's `tags` attribute so
+  // they surface as document-level (tag-tree) tags rather than inline content.
+  const tags = formatTags(question);
+  if (tags) await setBlockTags(settings, result.docId, tags);
   return { ok: true, status: 'saved', blockId: result.docId };
 }
 

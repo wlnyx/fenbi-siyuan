@@ -3,7 +3,8 @@ import test from 'node:test';
 import {
   formatQuestionMarkdown,
   buildDocTitle,
-  formatAnswerAnalysisHtml
+  formatAnswerAnalysisHtml,
+  formatTags
 } from '../dist/testable/formatter.js';
 
 test('formatQuestionMarkdown emits core question card without extra study sections', () => {
@@ -29,7 +30,7 @@ test('formatQuestionMarkdown emits core question card without extra study sectio
   assert.ok(markdown.includes('### 选项'));
   assert.doesNotMatch(markdown, /<details/);
   assert.match(markdown, /题目指纹：fenbi:abc123def456/);
-  assert.ok(markdown.includes("> 标签：#政治理论/专项智能练习/唯物论#"));
+  assert.ok(!markdown.includes("> 标签："));  // tags promoted to document-level via setBlockAttrs
   assert.doesNotMatch(markdown, /^> 来源：/m);
   assert.doesNotMatch(markdown, /> 来源：粉笔/);
   assert.doesNotMatch(markdown, /错因|复习|背诵点|AI/);
@@ -65,14 +66,13 @@ test('document title combines subject, module, date and short hash', () => {
   assert.equal(title, '政治理论·新思想·' + '2026-07-08' + '·' + 'abc123de');
 });
 
-test('tags use Siyuan three-level #科目/模块/考点# syntax', () => {
-  const markdown = formatQuestionMarkdown({
+test('formatTags builds three-level #科目/模块/考点# strings for the doc tags attribute', () => {
+  const tags = formatTags({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123def456', title: '',
     subject: '政治理论', module: '专项智能练习', questionText: '', options: [],
     imageUrls: [], keypoints: ['唯物论', '认识论'], capturedAt: '2026-07-08'
   });
-  assert.ok(markdown.includes('> 标签：#政治理论/专项智能练习/唯物论#'));
-  assert.ok(markdown.includes('#政治理论/专项智能练习/认识论#'));
+  assert.equal(tags, '#政治理论/专项智能练习/唯物论# #政治理论/专项智能练习/认识论#');
 });
 
 test('analysis bolds each option marker and separates paragraphs', () => {
@@ -90,14 +90,13 @@ test('analysis bolds each option marker and separates paragraphs', () => {
   assert.ok(html.includes('<p><strong>B项错误</strong>，从认识论角度看……</p>'));
 });
 
-test('tags fall back to single-level #科目# when no keypoints', () => {
-  const markdown = formatQuestionMarkdown({
+test('formatTags falls back to single-level #科目# when no keypoints', () => {
+  const tags = formatTags({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123456789', title: '',
     subject: '政治理论', module: '', questionText: 'q', options: [],
     imageUrls: [], keypoints: [], capturedAt: '2026-07-08'
   });
-  assert.ok(markdown.includes("> 标签：#政治理论#"));
-  assert.ok(!markdown.includes('#' + "政治理论/"));
+  assert.equal(tags, '#政治理论#');
 });
 test('escapeHtml defangs <, >, & in user-supplied answer/analysis text', () => {
   const html = formatAnswerAnalysisHtml({
