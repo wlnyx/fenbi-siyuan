@@ -30,3 +30,6 @@ npm-debug.log*
 .trellis/.developer
 .trellis/workspace/
 .trellis/.template-hashes.json
+
+# Release build output
+release/

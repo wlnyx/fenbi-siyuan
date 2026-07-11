@@ -58,7 +58,7 @@ function parseOptions(value: string): Array<{ label: string; text: string }> {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line, index) => {
-      const match = line.match(/^([A-H])[\s.\u3001\u3000\uff1a\uff1a\u0020]+(.+)$/);
+      const match = line.match(/^([A-H])[\s.\u3001\u3000\uff1a\u0020]+(.+)$/);
       if (match) return { label: match[1], text: match[2].trim() };
       return { label: String.fromCharCode(65 + index), text: line };
     });
@@ -114,19 +114,12 @@ function saveFieldMemory(values: FieldMemory): void {
   chrome.storage.local.set({ [MEMORY_KEY]: values });
 }
 
-function openPreview(question: FenbiQuestion): void {
+async function openPreview(question: FenbiQuestion): Promise<void> {
   removePreview();
-  // Field defaults load asynchronously; we attach the listeners after the DOM
-  // exists, and fill from memory once it resolves.
-  let memory: FieldMemory = { subject: '', module: '' };
-  void loadFieldMemory().then((m) => {
-    memory = m;
-    // Only overwrite if the parser left subject/module blank.
-    const subjEl = field(shadow, 'subject');
-    const modEl = field(shadow, 'module');
-    if (!subjEl.value) subjEl.value = m.subject;
-    if (!modEl.value) modEl.value = m.module;
-  });
+  // Load remembered subject/module first so the form builds with them. Memory
+  // takes priority over parsed values: a student who set a custom subject keeps
+  // it across questions instead of fighting an overeager parser default.
+  const memory = await loadFieldMemory();
   const host = document.createElement('div');
   host.id = MODAL_ID;
   const shadow = host.attachShadow({ mode: 'open' });
@@ -359,10 +352,9 @@ function openPreview(question: FenbiQuestion): void {
   `;
   document.body.append(host);
 
-  // Default subject/module to the last-used values when the parser didn't
-  // detect them; this lets the student batch-collect without retyping.
-  field(shadow, 'subject').value = question.subject ?? memory.subject;
-  field(shadow, 'module').value = question.module ?? memory.module;
+  // Memory takes priority; fall back to parser output when stored value is empty.
+  field(shadow, 'subject').value = memory.subject || question.subject || '';
+  field(shadow, 'module').value = memory.module || question.module || '';
   field(shadow, 'keypoints').value = question.keypoints.join(' ');
   field(shadow, 'questionText').value = question.questionText;
   field(shadow, 'options').value = optionText(question);
@@ -446,7 +438,7 @@ async function handleCollectQuestion(container: HTMLElement, event: MouseEvent):
   event.stopPropagation();
   try {
     const question = await parseFenbiQuestion(document, container);
-    openPreview(question);
+    await openPreview(question);
   } catch (error) {
     showToast(error instanceof Error ? error.message : '\u89e3\u6790\u7c89\u7b14\u9898\u76ee\u5931\u8d25');
   }

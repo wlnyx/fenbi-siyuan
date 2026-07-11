@@ -6,33 +6,38 @@ function fallback(value: string | undefined, defaultValue = '未填写'): string
 }
 
 // Document name shown in the Siyuan doc tree.
-// Pattern: 科目·考点·日期·短哈希 (empty segments omitted).
+// Pattern: 科目·模块·日期·短哈希 (empty segments omitted). Keypoints still
+// drive the tag line (formatTags), not the doc name.
 export function buildDocTitle(question: FenbiQuestion): string {
   const subject = question.subject?.trim();
-  const keypoints = question.keypoints.filter((kp) => kp.trim());
-  const keypointText = keypoints.length > 0 ? keypoints.join('/') : '';
+  const module = question.module?.trim();
   const date = question.capturedAt;
   const shortHash = question.contentHash.slice(0, 8);
 
   const segments: string[] = [];
   if (subject) segments.push(subject);
-  if (keypointText) segments.push(keypointText);
+  if (module) segments.push(module);
   segments.push(date, shortHash);
 
   return segments.join('·');
 }
 
-// Siyuan native multi-level tag syntax: #科目/考点# nests 考点 under 科目.
+// Siyuan native multi-level tag syntax: # 科目 / 模块 / 考点 #, nesting 考点
+// under 模块 and 模块 under 科目. Missing middle levels are skipped, so it
+// degrades to #科目/考点#, #科目/模块#, or #科目# depending on what's present.
 function formatTags(question: FenbiQuestion): string {
   const subject = question.subject?.trim();
+  const module = question.module?.trim();
   const keypoints = question.keypoints
     .map((kp) => kp.trim())
     .filter(Boolean);
+
+  const prefix = [subject, module].filter(Boolean).join('/');
   const tags: string[] = [];
-  if (subject && keypoints.length > 0) {
-    for (const kp of keypoints) tags.push(`#${subject}/${kp}#`);
-  } else if (subject) {
-    tags.push(`#${subject}#`);
+  if (prefix && keypoints.length > 0) {
+    for (const kp of keypoints) tags.push(`#${prefix}/${kp}#`);
+  } else if (prefix) {
+    tags.push(`#${prefix}#`);
   } else if (keypoints.length > 0) {
     for (const kp of keypoints) tags.push(`#${kp}#`);
   }
@@ -40,10 +45,7 @@ function formatTags(question: FenbiQuestion): string {
 }
 
 function formatMetadata(question: FenbiQuestion): string[] {
-  const lines = [
-    '> 来源：粉笔',
-    `> 题目指纹：fenbi:${question.contentHash}`
-  ];
+  const lines = [`> 题目指纹：fenbi:${question.contentHash}`];
   if (question.subject?.trim()) lines.push(`> 科目：${question.subject.trim()}`);
   if (question.module?.trim()) lines.push(`> 模块：${question.module.trim()}`);
   const tagLine = formatTags(question);
@@ -67,7 +69,7 @@ function formatOptions(question: FenbiQuestion): string {
 
 // Markdown body sent to createDocWithMd: metadata quote block + question + options.
 // The collapsible answer+analysis is inserted afterwards as a proper SiYuan HTML
-// block via /api/block/insertBlock (see background/index.ts), because embedding
+// block via /api/block/appendBlock (see background/index.ts), because embedding
 // <details> inside Markdown is split by CommonMark blank-line HTML-block rules.
 export function formatQuestionMarkdown(question: FenbiQuestion): string {
   const imageMarkdown = formatImages(question);
@@ -96,17 +98,19 @@ export function formatQuestionMarkdown(question: FenbiQuestion): string {
 
 // Escape text that will live inside an HTML block. Markdown is NOT parsed inside
 // a SiYuan <div> HTML block, so we render content as real HTML and must escape raw
-// ampersands/angle brackets in user-supplied text.
+// ampersands/angle brackets in user-supplied text. Must run BEFORE any literal
+// HTML tags (e.g. <strong>) are injected, so they aren't double-escaped.
 function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // The analysis blob comes in as paragraphs (parser already separates <p> blocks
 // with a blank line). Bold the leading "X项正确/错误" marker of each option so they
-// stand out instead of running together. Runs on the escaped paragraph.
+// stand out instead of running together. Runs on the escaped paragraph, then
+// inserts the <strong> tags (post-escape so they survive intact).
 function formatAnalysisHtml(question: FenbiQuestion): string {
   const raw = question.analysis?.trim();
   if (!raw) return '<p>未解析到解析内容</p>';
@@ -128,7 +132,7 @@ function formatAnswersHtml(question: FenbiQuestion): string {
 }
 
 // Build a single Siyuan HTML block wrapping the collapsed answer + analysis.
-// Constraints from the Siyuan insertBlock(dom) API:
+// Constraints from the Siyuan appendBlock(dom) API:
 //   - one unique root <div> wrapping everything
 //   - no empty lines inside (Siyuan's DOM parser rejects blank lines)
 // <details> defaults to collapsed, so this yields "默认折叠" in the doc.

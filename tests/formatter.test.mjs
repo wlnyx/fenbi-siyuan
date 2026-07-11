@@ -29,7 +29,9 @@ test('formatQuestionMarkdown emits core question card without extra study sectio
   assert.ok(markdown.includes('### 选项'));
   assert.doesNotMatch(markdown, /<details/);
   assert.match(markdown, /题目指纹：fenbi:abc123def456/);
-  assert.ok(markdown.includes("> 标签：#政治理论/唯物论#"));
+  assert.ok(markdown.includes("> 标签：#政治理论/专项智能练习/唯物论#"));
+  assert.doesNotMatch(markdown, /^> 来源：/m);
+  assert.doesNotMatch(markdown, /> 来源：粉笔/);
   assert.doesNotMatch(markdown, /错因|复习|背诵点|AI/);
 });
 
@@ -54,23 +56,23 @@ test('formatAnswerAnalysisHtml builds one folded HTML block wrapped in a single 
   assert.doesNotMatch(html, /\n[ \t]*\n/);
 });
 
-test('document title combines subject, keypoint, date and short hash', () => {
+test('document title combines subject, module, date and short hash', () => {
   const title = buildDocTitle({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123def456', title: '',
-    subject: '政治理论', module: 'm', questionText: '', options: [],
+    subject: '政治理论', module: '新思想', questionText: '', options: [],
     imageUrls: [], keypoints: ['唯物论'], capturedAt: '2026-07-08'
   });
-  assert.equal(title, '政治理论·唯物论·' + '2026-07-08' + '·' + 'abc123de');
+  assert.equal(title, '政治理论·新思想·' + '2026-07-08' + '·' + 'abc123de');
 });
 
-test('tags use Siyuan multi-level #科目/考点# syntax', () => {
+test('tags use Siyuan three-level #科目/模块/考点# syntax', () => {
   const markdown = formatQuestionMarkdown({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123def456', title: '',
-    subject: '政治理论', module: 'm', questionText: '', options: [],
+    subject: '政治理论', module: '专项智能练习', questionText: '', options: [],
     imageUrls: [], keypoints: ['唯物论', '认识论'], capturedAt: '2026-07-08'
   });
-  assert.ok(markdown.includes('> 标签：#' + "政治理论/唯物论" + '#'));
-  assert.ok(markdown.includes('#' + "政治理论/认识论" + '#'));
+  assert.ok(markdown.includes('> 标签：#政治理论/专项智能练习/唯物论#'));
+  assert.ok(markdown.includes('#政治理论/专项智能练习/认识论#'));
 });
 
 test('analysis bolds each option marker and separates paragraphs', () => {
@@ -96,4 +98,21 @@ test('tags fall back to single-level #科目# when no keypoints', () => {
   });
   assert.ok(markdown.includes("> 标签：#政治理论#"));
   assert.ok(!markdown.includes('#' + "政治理论/"));
+});
+test('escapeHtml defangs <, >, & in user-supplied answer/analysis text', () => {
+  const html = formatAnswerAnalysisHtml({
+    source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123def456', title: '',
+    subject: '政治理论', module: 'm', questionText: '', options: [],
+    userAnswer: '<script>alert(1)</script>', correctAnswer: 'A & B',
+    imageUrls: [], keypoints: [], capturedAt: '2026-07-08',
+    analysis: "A项正确，<img onerror=alert(2)>，因为……"
+  });
+  assert.ok(html.includes("我的答案：&lt;script&gt;alert(1)&lt;/script&gt;"));
+  assert.ok(html.includes("正确答案：A &amp; B"));
+  assert.ok(html.includes("&lt;img onerror=alert(2)&gt;"));
+  // no raw injected tags survive escaping
+  assert.doesNotMatch(html, /<script[\s>/]/);
+  assert.doesNotMatch(html, /<img onerror=alert\(2\)>/);
+  // the <strong> marker injected AFTER escaping survives intact
+  assert.match(html, /<strong>A项正确<\/strong>/);
 });
