@@ -66,13 +66,13 @@ test('document title combines subject, module, date and short hash', () => {
   assert.equal(title, '政治理论·新思想·' + '2026-07-08' + '·' + 'abc123de');
 });
 
-test('formatTags builds three-level #科目/模块/考点# strings for the doc tags attribute', () => {
+test('formatTags builds three-level 科目/模块/考点 strings (comma-separated) for the doc tags attribute', () => {
   const tags = formatTags({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123def456', title: '',
     subject: '政治理论', module: '专项智能练习', questionText: '', options: [],
     imageUrls: [], keypoints: ['唯物论', '认识论'], capturedAt: '2026-07-08'
   });
-  assert.equal(tags, '#政治理论/专项智能练习/唯物论# #政治理论/专项智能练习/认识论#');
+  assert.equal(tags, '政治理论/专项智能练习/唯物论, 政治理论/专项智能练习/认识论');
 });
 
 test('analysis bolds each option marker and separates paragraphs', () => {
@@ -90,13 +90,13 @@ test('analysis bolds each option marker and separates paragraphs', () => {
   assert.ok(html.includes('<p><strong>B项错误</strong>，从认识论角度看……</p>'));
 });
 
-test('formatTags falls back to single-level #科目# when no keypoints', () => {
+test('formatTags falls back to single-level 科目 when no keypoints', () => {
   const tags = formatTags({
     source: 'fenbi', url: '', urlKey: '', contentHash: 'abc123456789', title: '',
     subject: '政治理论', module: '', questionText: 'q', options: [],
     imageUrls: [], keypoints: [], capturedAt: '2026-07-08'
   });
-  assert.equal(tags, '#政治理论#');
+  assert.equal(tags, '政治理论');
 });
 test('escapeHtml defangs <, >, & in user-supplied answer/analysis text', () => {
   const html = formatAnswerAnalysisHtml({

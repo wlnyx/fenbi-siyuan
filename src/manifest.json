@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "粉笔题目收进思源",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "从粉笔解析页收集题目、答案和解析到思源笔记。",
   "permissions": [
     "storage"

@@ -22,10 +22,12 @@ export function buildDocTitle(question: FenbiQuestion): string {
   return segments.join('·');
 }
 
-// Siyuan multi-level tag syntax produced for the DOCUMENT tags attribute (set
-// via /api/attr/setBlockAttrs in background/index.ts), so tags appear as
+// Comma-separated plain tag paths written to the DOCUMENT tags attribute (set
+// via /api/attr/setBlockAttrs in background/index.ts) so tags surface as
 // document-level tags browsable in the tag tree, not embedded in the content.
-// Missing middle levels are skipped: degrades to #科目/考点#, #科目/模块#, or #科目#.
+// SiYuan splits the tags attribute on COMMAS into separate tag-tree entries;
+// space-separated values collapse into one malformed "#a b#" tag. Missing
+// middle levels are skipped: degrades to 科目/考点, 科目/模块, or 科目.
 export function formatTags(question: FenbiQuestion): string {
   const subject = question.subject?.trim();
   const module = question.module?.trim();
@@ -34,15 +36,18 @@ export function formatTags(question: FenbiQuestion): string {
     .filter(Boolean);
 
   const prefix = [subject, module].filter(Boolean).join('/');
+  // SiYuan's document tags attribute splits on COMMAS into separate tag-tree
+  // entries (blocks.tag becomes "#path1# #path2#"). Space-separated values
+  // produce a single malformed "#path1 path2#" entry, which caused the extra #.
   const tags: string[] = [];
   if (prefix && keypoints.length > 0) {
-    for (const kp of keypoints) tags.push(`#${prefix}/${kp}#`);
+    for (const kp of keypoints) tags.push(`${prefix}/${kp}`);
   } else if (prefix) {
-    tags.push(`#${prefix}#`);
+    tags.push(prefix);
   } else if (keypoints.length > 0) {
-    for (const kp of keypoints) tags.push(`#${kp}#`);
+    for (const kp of keypoints) tags.push(kp);
   }
-  return tags.join(' ');
+  return tags.join(', ');
 }
 
 function formatMetadata(question: FenbiQuestion): string[] {

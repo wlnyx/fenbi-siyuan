@@ -147,10 +147,11 @@ export async function appendHtmlBlock(
 }
 
 // Set document-level tags on a block (typically the document root) by writing the
-// SiYuan-native `tags` attribute via /api/attr/setBlockAttrs. The value uses the
-// inline `#path#` form, space-separated, exactly as produced by formatTags.
-// SiYuan persists this to the attributes table and the tag tree reads it from
-// there, so the tags become browsable document tags rather than inline content.
+// SiYuan-native `tags` attribute via /api/attr/setBlockAttrs. The value is a
+// comma-separated list of plain paths (no `#`), exactly as produced by
+// formatTags. SiYuan splits the `tags` attribute on commas into separate tag
+// entries (blocks.tag = "#path1# #path2#"), so the tags surface in the tag
+// tree as browsable document tags rather than inline content.
 export async function setBlockTags(
   settings: ExtensionSettings,
   blockId: string,
